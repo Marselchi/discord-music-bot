@@ -1,0 +1,27 @@
+{
+  "name": "discord-music-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "build": "bun build --compile --minify --sourcemap ./src/index.ts --outfile bot-server",
+    "build:win": "bun build --compile --minify --sourcemap --target=bun-windows-x64 ./src/index.ts --outfile bot-server-windows.exe",
+    "build:mac-x64": "bun build --compile --minify --sourcemap --target=bun-darwin-x64 ./src/index.ts --outfile bot-server-macos-x64",
+    "build:mac-arm": "bun build --compile --minify --sourcemap --target=bun-darwin-arm64 ./src/index.ts --outfile bot-server-macos-arm64",
+    "build:linux-x64": "bun build --compile --minify --sourcemap --target=bun-linux-x64 ./src/index.ts --outfile bot-server-linux-x64",
+    "build:linux-arm": "bun build --compile --minify --sourcemap --target=bun-linux-arm64 ./src/index.ts --outfile bot-server-linux-arm64",
+    "build:docker": "bash scripts/build-all-docker.sh"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0",
+    "@discordjs/voice": "^0.19.2",
+    "libsodium-wrappers": "^0.8.4"
+  },
+  "trustedDependencies": [],
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,36 @@
+# Cross-compiles standalone executables for every target platform inside a
+# Linux container, so `bun build --compile --target=bun-windows-x64` never
+# has to run ON Windows (avoiding the "failed to copy bun executable into
+# temporary file: ENOENT" issue some Windows setups hit). Bun's compiler
+# supports cross-compilation from any host to any target — the compile
+# step doesn't need to run on the target OS at all.
+#
+# Usage (from the project root):
+#   docker build --target export --output type=local,dest=./dist -f Dockerfile.build .
+# or just: bash scripts/build-all-docker.sh  (does the above, plus zips each
+# platform's binary together with ffmpeg/ffprobe/yt-dlp and a starter
+# DISCORD_TOKEN.env — see that script for the full explanation)
+#
+# Requires Docker with BuildKit (the default in current Docker Desktop).
+
+FROM oven/bun:1 AS build
+WORKDIR /app
+
+COPY package.json ./
+COPY bun.lock* ./
+RUN bun install
+
+COPY . .
+
+RUN mkdir -p /out && \
+    bun build --compile --minify --target=bun-windows-x64 ./src/index.ts --outfile /out/windows-x64/bot-server.exe && \
+    bun build --compile --minify --target=bun-linux-x64   ./src/index.ts --outfile /out/linux-x64/bot-server && \
+    bun build --compile --minify --target=bun-linux-arm64 ./src/index.ts --outfile /out/linux-arm64/bot-server && \
+    bun build --compile --minify --target=bun-darwin-x64  ./src/index.ts --outfile /out/macos-x64/bot-server && \
+    bun build --compile --minify --target=bun-darwin-arm64 ./src/index.ts --outfile /out/macos-arm64/bot-server
+
+# Scratch stage holding only the build output, so `--output type=local`
+# copies out just the binaries (one subfolder per platform) and nothing
+# else from the build environment.
+FROM scratch AS export
+COPY --from=build /out /

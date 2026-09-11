@@ -1,0 +1,16 @@
+node_modules/
+bot-server*
+*.exe
+config.json
+.token
+DISCORD_TOKEN.env
+logs/
+data/
+bin/
+dist/
+vendor/
+cache/
+*.db
+*.db-wal
+*.db-shm
+.env
