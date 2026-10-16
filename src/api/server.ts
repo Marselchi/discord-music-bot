@@ -12,12 +12,14 @@ import { registerSettingsRoutes } from "./routes/settings";
 import { registerGuildRoutes } from "./routes/guilds";
 import { registerPlaylistRoutes } from "./routes/playlists";
 import { registerLibraryRoutes } from "./routes/library";
+import { registerSystemRoutes } from "./routes/system";
 
 const log = createLogger("api/server");
 
 export function startServer(config: AppConfig, localToken: string) {
   const router = new Router();
   registerHealthRoutes(router);
+  registerSystemRoutes(router);
   registerQueueRoutes(router);
   registerPlayerRoutes(router);
   registerSettingsRoutes(router);
@@ -37,7 +39,9 @@ export function startServer(config: AppConfig, localToken: string) {
       }
 
       if (url.pathname === "/ws") {
-        const upgraded = srv.upgrade(req);
+        const upgraded = srv.upgrade(req, {
+          data: { authenticated: false, guildIds: new Set<string>() },
+        });
         if (upgraded) return undefined as unknown as Response; // bun handles the response
         return new Response("WebSocket upgrade failed", { status: 400 });
       }

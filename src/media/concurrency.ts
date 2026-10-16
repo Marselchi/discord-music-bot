@@ -40,4 +40,13 @@ export class SpawnPool {
       if (next) next();
     };
   }
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    const release = await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
 }

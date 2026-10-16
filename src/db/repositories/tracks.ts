@@ -59,3 +59,10 @@ export function searchTracks(query: string, limit = 25): Track[] {
     .all(`%${query}%`, limit);
   return rows.map(fromRow);
 }
+
+export function updateTrackTitle(id: string, title: string): Track | null {
+  const db = getDb();
+  db.query("UPDATE tracks SET title = ? WHERE id = ?").run(title, id);
+  return getTrack(id);
+}
+

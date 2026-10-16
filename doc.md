@@ -343,6 +343,50 @@ for both track downloads and folder scans — check whether the `jobId` you
 get back matches a track id or this scan's job id to tell them apart).
 Errors: `400 bad_request` if no `musicFolder` is configured.
 
+**`POST /api/library/inspect`** — inspects a video URL, returning title, duration, thumbnail, and detected chapters without downloading audio.
+Body: `{ "url": "https://..." }`.
+Response: `{ "metadata": { "id": "...", "title": "...", "duration": 1200, "thumbnail": "...", "chapters": [{ "title": "...", "startTime": 0, "endTime": 120 }] } }`.
+
+**`POST /api/library/download-playlist`** — downloads an entire remote playlist, saving tracks to the library and optionally creating a local Playlist.
+Body: `{ "url": "https://...", "createPlaylist": true }`.
+Response: `{ "ok": true, "jobId": "...", "playlistId": "...", "title": "...", "trackCount": 25, "tracks": [...] }`, status `202`.
+
+**`POST /api/library/slice`** — slices an audio file into independent tracks registered in SQLite and cache.
+Body:
+```json
+{
+  "trackId": "existing-id",
+  "url": "https://...",
+  "slices": [{ "title": "Track 1", "startTime": 0, "endTime": 180 }],
+  "enqueueGuildId": "optional-guild-id",
+  "createPlaylistName": "optional-playlist-name"
+}
+```
+Response: `{ "ok": true, "tracks": [...], "playlistId": "..." }`, status `201`.
+
+**`GET /api/tracks/:trackId/chapters`** — fetches chapter markers for an already-registered track if available from source metadata.
+
+**`PATCH /api/tracks/:trackId`** — renames a track in the library and throughout all queues and playlists.
+Body: `{ "title": "New Track Title" }`.
+Response: `{ "ok": true, "track": { /* Track */ } }`.
+
+---
+
+### System & Updates
+
+**`GET /api/system/updates`** — checks current vs latest versions of `yt-dlp` and `ffmpeg`.
+Response:
+```json
+{
+  "ytdlp": { "current": "2024.08.19", "latest": "2025.01.15", "updateAvailable": true, "releaseUrl": "...", "canAutoUpdate": true },
+  "ffmpeg": { "current": "7.0.1", "latest": "7.1", "updateAvailable": false, "releaseUrl": "...", "canAutoUpdate": false },
+  "checkedAt": 1700000000000
+}
+```
+
+**`POST /api/system/update/ytdlp`** — triggers automated update of yt-dlp (`yt-dlp -U`).
+Response: `{ "ok": true, "output": "...", "status": { ... } }`.
+
 ---
 
 ## WebSocket

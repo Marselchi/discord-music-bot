@@ -9,12 +9,25 @@ const log = createLogger("media/ytdlp");
 export const ytdlpPlaybackPool = new SpawnPool(6, "ytdlp-playback");
 export const ytdlpImportPool = new SpawnPool(3, "ytdlp-import");
 
+export interface Chapter {
+  title: string;
+  startTime: number;
+  endTime: number;
+}
+
 export interface YtDlpMetadata {
   id: string;
   title: string;
   duration: number | null;
   thumbnail: string | null;
   webpage_url: string;
+  chapters?: Chapter[];
+}
+
+export interface PlaylistMetadata {
+  id: string;
+  title: string;
+  entries: YtDlpMetadata[];
 }
 
 /**
@@ -43,12 +56,77 @@ export async function getMetadata(url: string, timeoutMs = 30_000): Promise<YtDl
     }
 
     const json = JSON.parse(stdout);
+    const chapters: Chapter[] = Array.isArray(json.chapters)
+      ? json.chapters.map((c: any) => ({
+          title: String(c.title || `Chapter ${c.start_time}`),
+          startTime: Math.max(0, Number(c.start_time) || 0),
+          endTime: Math.max(0, Number(c.end_time) || 0),
+        }))
+      : [];
+
     return {
       id: json.id,
       title: json.title,
       duration: json.duration ?? null,
       thumbnail: json.thumbnail ?? null,
       webpage_url: json.webpage_url ?? url,
+      chapters,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * `yt-dlp --flat-playlist -J <url>` — extracts playlist metadata and entries quickly.
+ */
+export async function getPlaylistMetadata(url: string, timeoutMs = 60_000): Promise<PlaylistMetadata> {
+  const proc = Bun.spawn([YTDLP_PATH, "--flat-playlist", "-J", url], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  trackProcess(proc);
+
+  const timeout = setTimeout(() => proc.kill(), timeoutMs);
+  try {
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+
+    if (exitCode !== 0) {
+      log.error("yt-dlp playlist metadata lookup failed", { url, exitCode, stderr: stderr.slice(0, 500) });
+      throw new Error(`yt-dlp playlist lookup exited ${exitCode} for ${url}`);
+    }
+
+    const json = JSON.parse(stdout);
+    const rawEntries = Array.isArray(json.entries) ? json.entries : [json];
+    const entries: YtDlpMetadata[] = rawEntries
+      .filter((e: any) => e && (e.id || e.url))
+      .map((e: any) => {
+        const id = String(e.id || e.url);
+        let webUrl = e.webpage_url || e.url;
+        if (!webUrl || !webUrl.startsWith("http")) {
+          webUrl = `https://www.youtube.com/watch?v=${id}`;
+        }
+        let thumbnail = e.thumbnail ?? null;
+        if (!thumbnail && Array.isArray(e.thumbnails) && e.thumbnails.length > 0) {
+          thumbnail = e.thumbnails[e.thumbnails.length - 1].url;
+        }
+        return {
+          id,
+          title: String(e.title || "Untitled"),
+          duration: typeof e.duration === "number" ? e.duration : null,
+          thumbnail,
+          webpage_url: webUrl,
+        };
+      });
+
+    return {
+      id: String(json.id || "playlist"),
+      title: String(json.title || "Playlist"),
+      entries,
     };
   } finally {
     clearTimeout(timeout);

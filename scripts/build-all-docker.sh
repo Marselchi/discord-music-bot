@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # Builds standalone executables for every platform via Docker (see
-# Dockerfile.build), then packages each into a drop-in-and-run folder:
+# Dockerfile.build), then packages each into a lightweight release archive:
 #   bot-server(.exe)
-#   DISCORD_TOKEN.env
-#   ffmpeg(.exe) / ffprobe(.exe) / yt-dlp(.exe)   <- if present in vendor/<platform>/
-# zipped up as dist/discord-music-bot-<platform>.zip.
+#   run.bat (Windows only)
 #
-# Run from the project root: bash scripts/build-all-docker.sh
-# (or `bun run build:docker`)
+# Media dependencies (ffmpeg, yt-dlp) and DISCORD_TOKEN are NOT packaged.
+# The bot prompts for token and offers 1-click dependency install on first launch.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -23,22 +21,6 @@ for platform in "${PLATFORMS[@]}"; do
     continue
   fi
 
-  # Copies in ffmpeg/ffprobe/yt-dlp IF you've placed them in
-  # vendor/<platform>/ first — see README's "Bundling ffmpeg/ffprobe/yt-dlp"
-  # section for exactly where to download each one per platform. Not
-  # fetched automatically here: official download URLs/archive layouts for
-  # these change often enough that hardcoding them in this script would go
-  # stale silently instead of failing loudly.
-  if [ -d "vendor/$platform" ]; then
-    cp -n "vendor/$platform"/* "$outdir/" 2>/dev/null || true
-  else
-    echo "  (no vendor/$platform/ found - shipping without ffmpeg/ffprobe/yt-dlp; see README)"
-  fi
-
-  if [ ! -f "$outdir/DISCORD_TOKEN.env" ]; then
-    echo "DISCORD_TOKEN=ENTER_YOUR_TOKEN" > "$outdir/DISCORD_TOKEN.env"
-  fi
-
   if [ "$platform" = "windows-x64" ]; then
     cp windows/run.bat "$outdir/"
   fi
@@ -47,4 +29,4 @@ for platform in "${PLATFORMS[@]}"; do
   echo "Built dist/discord-music-bot-$platform.tar.gz"
 done
 
-echo "Done. See dist/ for per-platform zips."
+echo "Done. See dist/ for per-platform archives."

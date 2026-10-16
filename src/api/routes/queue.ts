@@ -44,6 +44,50 @@ export function registerQueueRoutes(router: Router) {
     return Response.json({ position, trackId }, { status: 201 });
   });
 
+  router.post("/api/queue/:guildId/playlist", async ({ req, params }) => {
+    const { getPlaylistMetadata } = await import("../../media/ytdlp");
+    const body = await jsonBody<{ url: string; requestedBy?: string }>(req);
+    if (!body.url) {
+      return Response.json({ error: { code: "bad_request", message: "Playlist url is required" } }, { status: 400 });
+    }
+
+    const playlistMeta = await getPlaylistMetadata(body.url);
+    if (!playlistMeta.entries.length) {
+      return Response.json({ error: { code: "bad_request", message: "No tracks found in playlist" } }, { status: 400 });
+    }
+
+    const baseTime = Date.now();
+    let count = 0;
+    for (let i = 0; i < playlistMeta.entries.length; i++) {
+      const entry = playlistMeta.entries[i]!;
+      const track: tracksRepo.Track = {
+        id: entry.id,
+        sourceType: "youtube",
+        sourceUrl: entry.webpage_url,
+        localPath: null,
+        title: entry.title,
+        durationSeconds: entry.duration,
+        thumbnailUrl: entry.thumbnail,
+        addedAt: baseTime + i,
+      };
+      tracksRepo.upsertTrack(track);
+      try {
+        queueRepo.enqueue(params.guildId, track.id, body.requestedBy ?? null);
+        count++;
+        ensureDownloaded(track).catch((err) =>
+          log.error("background pre-download failed", { trackId: track.id, error: String(err) })
+        );
+      } catch (err) {
+        log.warn("could not enqueue all playlist tracks (max length reached?)", { error: String(err) });
+        break;
+      }
+    }
+
+    bus.emit("queue.changed", { guildId: params.guildId });
+    log.info("playlist enqueued", { guildId: params.guildId, count, playlistTitle: playlistMeta.title });
+    return Response.json({ ok: true, count, title: playlistMeta.title }, { status: 201 });
+  });
+
   router.delete("/api/queue/:guildId/:position", ({ params }) => {
     queueRepo.removeAt(params.guildId, Number(params.position));
     bus.emit("queue.changed", { guildId: params.guildId });

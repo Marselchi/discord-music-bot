@@ -1,0 +1,75 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Determine Version
+        id: version
+        run: |
+          RAW_VERSION=$(bun -e "console.log(require('./package.json').version)")
+          echo "VERSION=${RAW_VERSION}" >> $GITHUB_OUTPUT
+          echo "TAG=v${RAW_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Cross-compile standalone binaries
+        run: |
+          mkdir -p dist/windows-x64 dist/linux-x64 dist/linux-arm64 dist/macos-x64 dist/macos-arm64
+          bun build --compile --minify ./src/index.ts --target=bun-windows-x64 --outfile ./dist/windows-x64/bot-server.exe
+          bun build --compile --minify ./src/index.ts --target=bun-linux-x64   --outfile ./dist/linux-x64/bot-server
+          bun build --compile --minify ./src/index.ts --target=bun-linux-arm64 --outfile ./dist/linux-arm64/bot-server
+          bun build --compile --minify ./src/index.ts --target=bun-darwin-x64  --outfile ./dist/macos-x64/bot-server
+          bun build --compile --minify ./src/index.ts --target=bun-darwin-arm64 --outfile ./dist/macos-arm64/bot-server
+
+      - name: Package release archives (without ffmpeg/yt-dlp/token)
+        run: |
+          cp windows/run.bat ./dist/windows-x64/
+          cd dist
+          tar -czf discord-music-bot-windows-x64.tar.gz -C windows-x64 .
+          tar -czf discord-music-bot-linux-x64.tar.gz -C linux-x64 .
+          tar -czf discord-music-bot-linux-arm64.tar.gz -C linux-arm64 .
+          tar -czf discord-music-bot-macos-x64.tar.gz -C macos-x64 .
+          tar -czf discord-music-bot-macos-arm64.tar.gz -C macos-arm64 .
+          zip -r discord-music-bot-windows-x64.zip windows-x64
+          zip -r discord-music-bot-linux-x64.zip linux-x64
+          zip -r discord-music-bot-linux-arm64.zip linux-arm64
+          zip -r discord-music-bot-macos-x64.zip macos-x64
+          zip -r discord-music-bot-macos-arm64.zip macos-arm64
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.TAG }}
+          name: Release ${{ steps.version.outputs.TAG }}
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

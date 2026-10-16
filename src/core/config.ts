@@ -116,7 +116,9 @@ export function getConfig(): AppConfig {
  * Unknown/future keys in config.json are silently ignored rather than
  * failing validation, so an older config file never breaks a newer binary.
  */
-export function loadConfig(): AppConfig {
+import { promptForToken } from "./prompt";
+
+export async function loadConfig(): Promise<AppConfig> {
   const fromFile = readConfigFile();
   const fromCli = parseCliFlags();
   const tokenFromFile = readTokenFile();
@@ -138,11 +140,26 @@ export function loadConfig(): AppConfig {
     ...fromCli,
   };
 
+  // If token is missing, ask interactively in console if running in a terminal
+  if (!config.discordToken) {
+    if (process.stdin.isTTY) {
+      console.log("\n==============================================================");
+      console.log("  No Discord Bot Token found in environment or DISCORD_TOKEN.env");
+      console.log("==============================================================");
+      try {
+        const entered = await promptForToken("Please enter your Discord Bot Token: ");
+        if (entered) {
+          writeFileSync(TOKEN_FILE_PATH, `DISCORD_TOKEN=${entered}\n`, "utf-8");
+          config.discordToken = entered;
+          console.log("Saved token to DISCORD_TOKEN.env\n");
+        }
+      } catch {
+        // Fall through to error
+      }
+    }
+  }
+
   // Fail fast, don't half-start, if the one truly required secret is missing.
-  // Throws rather than calling process.exit() directly so index.ts's single
-  // top-level catch handles the "print it clearly, keep the window open,
-  // then exit" sequence uniformly for every kind of fatal startup error,
-  // not just this one.
   if (!config.discordToken) {
     throw new Error(
       "No Discord bot token found. Create a DISCORD_TOKEN.env file " +

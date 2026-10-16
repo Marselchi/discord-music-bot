@@ -21,6 +21,14 @@ const EXE_SUFFIX = process.platform === "win32" ? ".exe" : "";
 function resolveBinary(name: string): string {
   const localPath = join(APP_DIR, `${name}${EXE_SUFFIX}`);
   if (existsSync(localPath)) return localPath;
+
+  const archFolder = process.platform === "win32" ? "windows-x64" : `${process.platform}-${process.arch}`;
+  const vendorPath = join(APP_DIR, "vendor", archFolder, `${name}${EXE_SUFFIX}`);
+  if (existsSync(vendorPath)) return vendorPath;
+
+  const distPath = join(APP_DIR, "dist", archFolder, `${name}${EXE_SUFFIX}`);
+  if (existsSync(distPath)) return distPath;
+
   return name;
 }
 

@@ -6,11 +6,19 @@ import { killAllTrackedProcesses } from "./core/processRegistry";
 import { initDb } from "./db/index";
 import { startBot } from "./bot/client";
 import { startServer } from "./api/server";
+import { checkBotUpdateOnStartup } from "./core/versionChecker";
+import { promptInstallDependenciesOnStartup } from "./core/dependencyInstaller";
 
 const log = createLogger("index");
 
 async function main() {
-  const config = loadConfig();
+  // Check for new releases on startup and prompt in console
+  await checkBotUpdateOnStartup();
+
+  // Check for missing ffmpeg / yt-dlp and prompt to install if needed
+  await promptInstallDependenciesOnStartup();
+
+  const config = await loadConfig();
   initDb();
   const localToken = getOrCreateLocalToken();
 

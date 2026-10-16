@@ -1,10 +1,9 @@
 # Builds standalone executables for every platform via Docker (see
-# Dockerfile.build), then packages each into a drop-in-and-run folder:
+# Dockerfile.build), then packages each into a lightweight release archive:
 #   bot-server(.exe)
-#   DISCORD_TOKEN.env
-#   ffmpeg(.exe) / ffprobe(.exe) / yt-dlp(.exe)   <- if present in vendor\<platform>\
-# zipped up as dist\discord-music-bot-<platform>.zip.
+#   run.bat (Windows only)
 #
+# Media dependencies (ffmpeg, yt-dlp) and DISCORD_TOKEN are NOT packaged.
 # Run from the project root in PowerShell: .\scripts\build-all-docker.ps1
 
 $ErrorActionPreference = "Stop"
@@ -21,21 +20,6 @@ foreach ($platform in $platforms) {
     if (-not (Test-Path $outDir)) {
         Write-Host "Skipping $platform - no build output found"
         continue
-    }
-
-    # Copies in ffmpeg/ffprobe/yt-dlp IF you've placed them in
-    # vendor\<platform>\ first — see README's "Bundling ffmpeg/ffprobe/yt-dlp"
-    # section for exactly where to download each one per platform.
-    $vendorDir = "vendor/$platform"
-    if (Test-Path $vendorDir) {
-        Copy-Item "$vendorDir/*" $outDir -Force
-    } else {
-        Write-Host "  (no vendor/$platform/ found - shipping without ffmpeg/ffprobe/yt-dlp; see README)"
-    }
-
-    $tokenFile = "$outDir/DISCORD_TOKEN.env"
-    if (-not (Test-Path $tokenFile)) {
-        "DISCORD_TOKEN=ENTER_YOUR_TOKEN" | Out-File -Encoding ascii -FilePath $tokenFile
     }
 
     if ($platform -eq "windows-x64") {
