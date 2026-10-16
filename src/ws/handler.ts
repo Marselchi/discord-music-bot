@@ -20,6 +20,7 @@ const RELAYED_EVENTS: (keyof AppEvents)[] = [
   "download.progress",
   "voice.connected",
   "voice.disconnected",
+  "playlists.changed",
 ];
 
 /**

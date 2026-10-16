@@ -19,6 +19,7 @@ export interface AppEvents {
   "download.progress": { jobId: string; done: number; total: number };
   "voice.connected": { guildId: string; channelId: string };
   "voice.disconnected": { guildId: string };
+  "playlists.changed": Record<string, never>;
 }
 
 type Handler<K extends keyof AppEvents> = (payload: AppEvents[K]) => void;

@@ -18,7 +18,11 @@ const log = createLogger("api/library");
 export function registerLibraryRoutes(router: Router, config: AppConfig) {
   router.get("/api/library/search", ({ query }) => {
     const q = query.get("q") ?? "";
-    return Response.json({ tracks: tracksRepo.searchTracks(q) });
+    const limit = parseInt(query.get("limit") ?? "50", 10);
+    const offset = parseInt(query.get("offset") ?? "0", 10);
+    return Response.json({
+      tracks: tracksRepo.searchTracks(q, isNaN(limit) ? 50 : limit, isNaN(offset) ? 0 : offset),
+    });
   });
 
   // Inspects a URL or search query and returns metadata + any detected chapters
@@ -107,6 +111,7 @@ export function registerLibraryRoutes(router: Router, config: AppConfig) {
       for (const track of createdTracks) {
         playlistsRepo.addTrackToPlaylist(pl.id, track.id);
       }
+      bus.emit("playlists.changed", {});
     }
 
     // Background download batch with progress
@@ -206,6 +211,7 @@ export function registerLibraryRoutes(router: Router, config: AppConfig) {
       for (const t of slicedTracks) {
         playlistsRepo.addTrackToPlaylist(pl.id, t.id);
       }
+      bus.emit("playlists.changed", {});
     }
 
     return Response.json(

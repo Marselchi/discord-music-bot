@@ -22,6 +22,11 @@ export function deletePlaylist(id: string): void {
   getDb().query("DELETE FROM playlists WHERE id = ?").run(id);
 }
 
+export function getPlaylist(id: string): Playlist | null {
+  const row = getDb().query("SELECT id, name, created_at FROM playlists WHERE id = ?").get(id) as any;
+  return row ? { id: row.id, name: row.name, createdAt: row.created_at } : null;
+}
+
 export function getPlaylistTracks(id: string): (Track & { position: number })[] {
   const rows = getDb()
     .query(
@@ -48,7 +53,7 @@ export function addTrackToPlaylist(playlistId: string, trackId: string): void {
   const next = db
     .query("SELECT COALESCE(MAX(position), -1) + 1 as next FROM playlist_tracks WHERE playlist_id = ?")
     .get(playlistId) as { next: number };
-  db.query("INSERT INTO playlist_tracks (playlist_id, track_id, position) VALUES (?, ?, ?)").run(
+  db.query("INSERT OR REPLACE INTO playlist_tracks (playlist_id, track_id, position) VALUES (?, ?, ?)").run(
     playlistId,
     trackId,
     next.next

@@ -53,10 +53,10 @@ export function getTrack(id: string): Track | null {
   return row ? fromRow(row) : null;
 }
 
-export function searchTracks(query: string, limit = 25): Track[] {
+export function searchTracks(query: string, limit = 50, offset = 0): Track[] {
   const rows = getDb()
-    .query("SELECT * FROM tracks WHERE title LIKE ? ORDER BY added_at DESC LIMIT ?")
-    .all(`%${query}%`, limit);
+    .query("SELECT * FROM tracks WHERE title LIKE ? ORDER BY added_at DESC LIMIT ? OFFSET ?")
+    .all(`%${query}%`, limit, offset);
   return rows.map(fromRow);
 }
 

@@ -2,6 +2,7 @@ import type { Router } from "../router";
 import { jsonBody } from "../router";
 import * as queueRepo from "../../db/repositories/queue";
 import * as tracksRepo from "../../db/repositories/tracks";
+import * as playlistsRepo from "../../db/repositories/playlists";
 import { bus } from "../../core/bus";
 import { resolveInput, ensureDownloaded } from "../../media/resolver";
 import { createLogger } from "../../core/logger";
@@ -45,11 +46,41 @@ export function registerQueueRoutes(router: Router) {
   });
 
   router.post("/api/queue/:guildId/playlist", async ({ req, params }) => {
-    const { getPlaylistMetadata } = await import("../../media/ytdlp");
-    const body = await jsonBody<{ url: string; requestedBy?: string }>(req);
-    if (!body.url) {
-      return Response.json({ error: { code: "bad_request", message: "Playlist url is required" } }, { status: 400 });
+    const body = await jsonBody<{ url?: string; playlistId?: string; requestedBy?: string }>(req);
+
+    if (body.playlistId) {
+      const pl = playlistsRepo.getPlaylist(body.playlistId);
+      const tracks = playlistsRepo.getPlaylistTracks(body.playlistId);
+      if (!tracks.length) {
+        return Response.json({ error: { code: "bad_request", message: "Playlist has no tracks" } }, { status: 400 });
+      }
+
+      let count = 0;
+      for (const track of tracks) {
+        try {
+          queueRepo.enqueue(params.guildId, track.id, body.requestedBy ?? null);
+          count++;
+          if (track.sourceType !== "local") {
+            ensureDownloaded(track).catch((err) =>
+              log.error("background pre-download failed", { trackId: track.id, error: String(err) })
+            );
+          }
+        } catch (err) {
+          log.warn("could not enqueue all playlist tracks (max length reached?)", { error: String(err) });
+          break;
+        }
+      }
+
+      bus.emit("queue.changed", { guildId: params.guildId });
+      log.info("local playlist enqueued", { guildId: params.guildId, count, playlistTitle: pl?.name });
+      return Response.json({ ok: true, count, title: pl?.name ?? "Playlist" }, { status: 201 });
     }
+
+    if (!body.url) {
+      return Response.json({ error: { code: "bad_request", message: "Playlist url or playlistId is required" } }, { status: 400 });
+    }
+
+    const { getPlaylistMetadata } = await import("../../media/ytdlp");
 
     const playlistMeta = await getPlaylistMetadata(body.url);
     if (!playlistMeta.entries.length) {
