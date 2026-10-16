@@ -107,7 +107,7 @@ function compareVersions(current: string | null, latest: string | null): boolean
   return false;
 }
 
-export const BOT_VERSION = "0.1.0";
+export const BOT_VERSION = "0.2.0";
 export const GITHUB_REPO = "Marselchi/discord-music-bot";
 
 export async function getLatestBotVersion(): Promise<{ version: string | null; url: string }> {

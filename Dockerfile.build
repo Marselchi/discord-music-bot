@@ -23,11 +23,11 @@ RUN bun install
 COPY . .
 
 RUN mkdir -p /out && \
-    bun build --compile --minify --target=bun-windows-x64 ./src/index.ts --outfile /out/windows-x64/bot-server.exe && \
-    bun build --compile --minify --target=bun-linux-x64   ./src/index.ts --outfile /out/linux-x64/bot-server && \
-    bun build --compile --minify --target=bun-linux-arm64 ./src/index.ts --outfile /out/linux-arm64/bot-server && \
-    bun build --compile --minify --target=bun-darwin-x64  ./src/index.ts --outfile /out/macos-x64/bot-server && \
-    bun build --compile --minify --target=bun-darwin-arm64 ./src/index.ts --outfile /out/macos-arm64/bot-server
+    bun build --compile --minify --external ffmpeg-static --target=bun-windows-x64 ./src/index.ts --outfile /out/windows-x64/bot-server.exe && \
+    bun build --compile --minify --external ffmpeg-static --target=bun-linux-x64   ./src/index.ts --outfile /out/linux-x64/bot-server && \
+    bun build --compile --minify --external ffmpeg-static --target=bun-linux-arm64 ./src/index.ts --outfile /out/linux-arm64/bot-server && \
+    bun build --compile --minify --external ffmpeg-static --target=bun-darwin-x64  ./src/index.ts --outfile /out/macos-x64/bot-server && \
+    bun build --compile --minify --external ffmpeg-static --target=bun-darwin-arm64 ./src/index.ts --outfile /out/macos-arm64/bot-server
 
 # Scratch stage holding only the build output, so `--output type=local`
 # copies out just the binaries (one subfolder per platform) and nothing
