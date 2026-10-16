@@ -1,7 +1,7 @@
 import { existsSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 import { APP_DIR } from "./config";
-import { FFMPEG_PATH, YTDLP_PATH } from "./binaries";
+import { FFMPEG_PATH, FFPROBE_PATH, YTDLP_PATH } from "./binaries";
 import { promptUser } from "./prompt";
 import { createLogger } from "./logger";
 
@@ -11,9 +11,11 @@ const EXE_SUFFIX = process.platform === "win32" ? ".exe" : "";
 export async function checkDependenciesInstalled(): Promise<{
   ytdlp: boolean;
   ffmpeg: boolean;
+  ffprobe: boolean;
 }> {
   let ytdlpOk = false;
   let ffmpegOk = false;
+  let ffprobeOk = false;
 
   try {
     const proc = Bun.spawn([YTDLP_PATH, "--version"], { stdout: "pipe", stderr: "pipe" });
@@ -31,7 +33,15 @@ export async function checkDependenciesInstalled(): Promise<{
     ffmpegOk = false;
   }
 
-  return { ytdlp: ytdlpOk, ffmpeg: ffmpegOk };
+  try {
+    const proc = Bun.spawn([FFPROBE_PATH, "-version"], { stdout: "pipe", stderr: "pipe" });
+    const code = await proc.exited;
+    ffprobeOk = code === 0;
+  } catch {
+    ffprobeOk = false;
+  }
+
+  return { ytdlp: ytdlpOk, ffmpeg: ffmpegOk, ffprobe: ffprobeOk };
 }
 
 export async function installYtDlp(onProgress?: (msg: string) => void): Promise<string> {
@@ -111,13 +121,13 @@ export async function promptInstallDependenciesOnStartup(): Promise<void> {
   const status = await checkDependenciesInstalled();
   const missing: string[] = [];
   if (!status.ytdlp) missing.push("yt-dlp");
-  if (!status.ffmpeg) missing.push("ffmpeg");
+  if (!status.ffmpeg || !status.ffprobe) missing.push("ffmpeg (with ffprobe)");
 
   if (missing.length === 0) return;
 
   console.log("\n==============================================================");
   console.log(`  [Media] Missing required tool(s): ${missing.join(", ")}`);
-  console.log("  Music playback & download requires yt-dlp and ffmpeg.");
+  console.log("  Music playback & local track scanning requires yt-dlp and ffmpeg/ffprobe.");
   console.log("==============================================================");
 
   const answer = await promptUser(
@@ -132,7 +142,7 @@ export async function promptInstallDependenciesOnStartup(): Promise<void> {
       if (!status.ytdlp) {
         await installYtDlp((msg) => console.log(`[installer] ${msg}`));
       }
-      if (!status.ffmpeg && process.platform === "win32") {
+      if ((!status.ffmpeg || !status.ffprobe) && process.platform === "win32") {
         await installFFmpeg((msg) => console.log(`[installer] ${msg}`));
       }
       console.log("[installer] All missing components installed successfully!\n");

@@ -28,7 +28,10 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 export async function getCurrentYtDlpVersion(): Promise<string | null> {
   try {
-    const proc = Bun.spawn([YTDLP_PATH, "--version"], { stdout: "pipe", stderr: "pipe" });
+    const proc = Bun.spawn([YTDLP_PATH, "--version"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const stdout = await new Response(proc.stdout).text();
     await proc.exited;
     return stdout.trim() || null;
@@ -40,7 +43,10 @@ export async function getCurrentYtDlpVersion(): Promise<string | null> {
 
 export async function getCurrentFFmpegVersion(): Promise<string | null> {
   try {
-    const proc = Bun.spawn([FFMPEG_PATH, "-version"], { stdout: "pipe", stderr: "pipe" });
+    const proc = Bun.spawn([FFMPEG_PATH, "-version"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const stdout = await new Response(proc.stdout).text();
     await proc.exited;
     const firstLine = stdout.split("\n")[0] || "";
@@ -55,13 +61,19 @@ export async function getCurrentFFmpegVersion(): Promise<string | null> {
   }
 }
 
-export async function getLatestYtDlpVersion(): Promise<{ version: string | null; url: string }> {
+export async function getLatestYtDlpVersion(): Promise<{
+  version: string | null;
+  url: string;
+}> {
   const fallbackUrl = "https://github.com/yt-dlp/yt-dlp/releases/latest";
   try {
-    const res = await fetch("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest", {
-      headers: { "User-Agent": "discord-music-bot" },
-      signal: AbortSignal.timeout(10_000),
-    });
+    const res = await fetch(
+      "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest",
+      {
+        headers: { "User-Agent": "discord-music-bot" },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
     if (!res.ok) return { version: null, url: fallbackUrl };
     const data = (await res.json()) as { tag_name?: string; html_url?: string };
     const version = data.tag_name ? data.tag_name.replace(/^v/, "") : null;
@@ -72,13 +84,19 @@ export async function getLatestYtDlpVersion(): Promise<{ version: string | null;
   }
 }
 
-export async function getLatestFFmpegVersion(): Promise<{ version: string | null; url: string }> {
+export async function getLatestFFmpegVersion(): Promise<{
+  version: string | null;
+  url: string;
+}> {
   const fallbackUrl = "https://www.gyan.dev/ffmpeg/builds/";
   try {
-    const res = await fetch("https://www.gyan.dev/ffmpeg/builds/release-version", {
-      headers: { "User-Agent": "discord-music-bot" },
-      signal: AbortSignal.timeout(10_000),
-    });
+    const res = await fetch(
+      "https://www.gyan.dev/ffmpeg/builds/release-version",
+      {
+        headers: { "User-Agent": "discord-music-bot" },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
     if (!res.ok) return { version: null, url: fallbackUrl };
     const text = (await res.text()).trim();
     return { version: text || null, url: fallbackUrl };
@@ -88,7 +106,10 @@ export async function getLatestFFmpegVersion(): Promise<{ version: string | null
   }
 }
 
-function compareVersions(current: string | null, latest: string | null): boolean {
+function compareVersions(
+  current: string | null,
+  latest: string | null,
+): boolean {
   if (!current || !latest) return false;
   const cleanCurr = current.replace(/^n/, "").trim();
   const cleanLate = latest.replace(/^n/, "").trim();
@@ -107,19 +128,27 @@ function compareVersions(current: string | null, latest: string | null): boolean
   return false;
 }
 
-export const BOT_VERSION = "0.2.0";
+export const BOT_VERSION = "0.2.1";
 export const GITHUB_REPO = "Marselchi/discord-music-bot";
 
-export async function getLatestBotVersion(): Promise<{ version: string | null; url: string }> {
+export async function getLatestBotVersion(): Promise<{
+  version: string | null;
+  url: string;
+}> {
   const fallbackUrl = `https://github.com/${GITHUB_REPO}/releases/latest`;
   try {
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
-      headers: { "User-Agent": "discord-music-bot" },
-      signal: AbortSignal.timeout(6_000),
-    });
+    const res = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+      {
+        headers: { "User-Agent": "discord-music-bot" },
+        signal: AbortSignal.timeout(6_000),
+      },
+    );
     if (!res.ok) return { version: null, url: fallbackUrl };
     const release = (await res.json()) as any;
-    const latestTag = release.tag_name ? release.tag_name.replace(/^v/, "") : null;
+    const latestTag = release.tag_name
+      ? release.tag_name.replace(/^v/, "")
+      : null;
     return { version: latestTag, url: release.html_url || fallbackUrl };
   } catch (err) {
     log.warn("failed to fetch latest bot release", { error: String(err) });
@@ -127,19 +156,22 @@ export async function getLatestBotVersion(): Promise<{ version: string | null; u
   }
 }
 
-export async function checkSystemUpdates(force = false): Promise<SystemUpdatesStatus> {
+export async function checkSystemUpdates(
+  force = false,
+): Promise<SystemUpdatesStatus> {
   const now = Date.now();
   if (!force && cachedStatus && now - lastCheckTime < CACHE_TTL_MS) {
     return cachedStatus;
   }
 
-  const [currentYtDlp, currentFFmpeg, latestYtDlp, latestFFmpeg, latestBot] = await Promise.all([
-    getCurrentYtDlpVersion(),
-    getCurrentFFmpegVersion(),
-    getLatestYtDlpVersion(),
-    getLatestFFmpegVersion(),
-    getLatestBotVersion(),
-  ]);
+  const [currentYtDlp, currentFFmpeg, latestYtDlp, latestFFmpeg, latestBot] =
+    await Promise.all([
+      getCurrentYtDlpVersion(),
+      getCurrentFFmpegVersion(),
+      getLatestYtDlpVersion(),
+      getLatestFFmpegVersion(),
+      getLatestBotVersion(),
+    ]);
 
   const ytdlpUpdate = compareVersions(currentYtDlp, latestYtDlp.version);
   const ffmpegUpdate = compareVersions(currentFFmpeg, latestFFmpeg.version);
@@ -176,9 +208,15 @@ export async function checkSystemUpdates(force = false): Promise<SystemUpdatesSt
   return cachedStatus;
 }
 
-export async function runYtDlpAutoUpdate(): Promise<{ success: boolean; output: string }> {
+export async function runYtDlpAutoUpdate(): Promise<{
+  success: boolean;
+  output: string;
+}> {
   try {
-    const proc = Bun.spawn([YTDLP_PATH, "--update"], { stdout: "pipe", stderr: "pipe" });
+    const proc = Bun.spawn([YTDLP_PATH, "--update"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const [stdout, stderr] = await Promise.all([
       new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),
@@ -195,33 +233,53 @@ export async function runYtDlpAutoUpdate(): Promise<{ success: boolean; output: 
 
 export async function checkBotUpdateOnStartup(): Promise<boolean> {
   try {
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
-      headers: { "User-Agent": "discord-music-bot" },
-      signal: AbortSignal.timeout(6_000),
-    });
+    const res = await fetch(
+      `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+      {
+        headers: { "User-Agent": "discord-music-bot" },
+        signal: AbortSignal.timeout(6_000),
+      },
+    );
     if (!res.ok) return false;
     const release = (await res.json()) as any;
-    const latestTag = release.tag_name ? release.tag_name.replace(/^v/, "") : null;
+    const latestTag = release.tag_name
+      ? release.tag_name.replace(/^v/, "")
+      : null;
     if (!latestTag) return false;
 
     if (compareVersions(BOT_VERSION, latestTag)) {
-      console.log("\n==============================================================");
-      console.log(`  Update available for Discord Music Bot: v${latestTag} (current: v${BOT_VERSION})`);
-      console.log(`  Release page: ${release.html_url || `https://github.com/${GITHUB_REPO}/releases`}`);
-      console.log("==============================================================");
+      console.log(
+        "\n==============================================================",
+      );
+      console.log(
+        `  Update available for Discord Music Bot: v${latestTag} (current: v${BOT_VERSION})`,
+      );
+      console.log(
+        `  Release page: ${release.html_url || `https://github.com/${GITHUB_REPO}/releases`}`,
+      );
+      console.log(
+        "==============================================================",
+      );
 
       const answer = await promptUser(
         "Do you want to update now? (y/N) [default: N in 10s]: ",
         "n",
-        10_000
+        10_000,
       );
 
       if (answer.toLowerCase() === "y" || answer.toLowerCase() === "yes") {
-        console.log("[update] Fetching latest release asset for your system...");
+        console.log(
+          "[update] Fetching latest release asset for your system...",
+        );
         const targetPlatform =
-          process.platform === "win32" ? "windows-x64" : `${process.platform}-${process.arch}`;
+          process.platform === "win32"
+            ? "windows-x64"
+            : `${process.platform}-${process.arch}`;
         const asset = release.assets?.find(
-          (a: any) => a.name && (a.name.includes(targetPlatform) || a.name.includes(process.platform))
+          (a: any) =>
+            a.name &&
+            (a.name.includes(targetPlatform) ||
+              a.name.includes(process.platform)),
         );
 
         if (asset && asset.browser_download_url) {
@@ -258,14 +316,19 @@ export async function checkBotUpdateOnStartup(): Promise<boolean> {
             process.exit(0);
           }
         } else {
-          console.log("[update] No matching binary asset found for your platform in this release.");
-          console.log(`[update] You can download it manually from: ${release.html_url}\n`);
+          console.log(
+            "[update] No matching binary asset found for your platform in this release.",
+          );
+          console.log(
+            `[update] You can download it manually from: ${release.html_url}\n`,
+          );
         }
       }
     }
   } catch (err) {
-    log.debug("startup bot update check skipped or failed", { error: String(err) });
+    log.debug("startup bot update check skipped or failed", {
+      error: String(err),
+    });
   }
   return false;
 }
-
