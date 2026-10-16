@@ -15,7 +15,7 @@ permissions:
 jobs:
   release:
     name: Build & Publish Release (Windows x64)
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -29,32 +29,26 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Fetch Windows native voice binding (davey)
-        run: |
-          mkdir -p dist/windows-x64
-          curl -fsSL https://registry.npmjs.org/@snazzah/davey-win32-x64-msvc/-/davey-win32-x64-msvc-0.1.12.tgz | tar -xz --strip-components=1 -C dist/windows-x64 package/davey.win32-x64-msvc.node
-          mkdir -p node_modules/@snazzah/davey
-          cp dist/windows-x64/davey.win32-x64-msvc.node node_modules/@snazzah/davey/
-          mkdir -p node_modules/@snazzah/davey-win32-x64-msvc
-          cp dist/windows-x64/davey.win32-x64-msvc.node node_modules/@snazzah/davey-win32-x64-msvc/
-
       - name: Determine Version
         id: version
+        shell: bash
         run: |
           RAW_VERSION=$(bun -e "console.log(require('./package.json').version)")
           echo "VERSION=${RAW_VERSION}" >> $GITHUB_OUTPUT
           echo "TAG=v${RAW_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Compile Windows standalone binary
+        shell: pwsh
         run: |
-          bun build --compile --minify --external ffmpeg-static ./src/index.ts --target=bun-windows-x64 --outfile ./dist/windows-x64/bot-server.exe
+          New-Item -ItemType Directory -Force dist/windows-x64
+          bun build --compile --minify --external ffmpeg-static ./src/index.ts --outfile ./dist/windows-x64/bot-server.exe
+          Copy-Item windows/run.bat dist/windows-x64/
+          Get-ChildItem -Path node_modules -Filter "davey*.node" -Recurse | Copy-Item -Destination dist/windows-x64/ -Force
 
-      - name: Package Windows release archive (with davey native binding & run.bat)
+      - name: Package Windows release archive
+        shell: pwsh
         run: |
-          cp windows/run.bat ./dist/windows-x64/
-          cd dist
-          (cd windows-x64 && zip -r ../discord-music-bot-windows-x64.zip .)
-          tar -czf discord-music-bot-windows-x64.tar.gz -C windows-x64 .
+          Compress-Archive -Path dist/windows-x64/* -DestinationPath dist/discord-music-bot-windows-x64.zip -Force
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -63,7 +57,6 @@ jobs:
           name: Release ${{ steps.version.outputs.TAG }}
           files: |
             dist/discord-music-bot-windows-x64.zip
-            dist/discord-music-bot-windows-x64.tar.gz
           generate_release_notes: true
           draft: false
           prerelease: false

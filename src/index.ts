@@ -1,4 +1,3 @@
-import "./core/daveyBootstrap";
 import { loadConfig } from "./core/config";
 import { getOrCreateLocalToken } from "./core/auth";
 import { createLogger } from "./core/logger";
