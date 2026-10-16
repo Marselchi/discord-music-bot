@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   release:
-    name: Build & Publish Release
+    name: Build & Publish Release (Windows x64)
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +29,15 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Fetch Windows native voice binding (davey)
+        run: |
+          mkdir -p dist/windows-x64
+          curl -fsSL https://registry.npmjs.org/@snazzah/davey-win32-x64-msvc/-/davey-win32-x64-msvc-0.1.12.tgz | tar -xz --strip-components=1 -C dist/windows-x64 package/davey.win32-x64-msvc.node
+          mkdir -p node_modules/@snazzah/davey
+          cp dist/windows-x64/davey.win32-x64-msvc.node node_modules/@snazzah/davey/
+          mkdir -p node_modules/@snazzah/davey-win32-x64-msvc
+          cp dist/windows-x64/davey.win32-x64-msvc.node node_modules/@snazzah/davey-win32-x64-msvc/
+
       - name: Determine Version
         id: version
         run: |
@@ -36,29 +45,16 @@ jobs:
           echo "VERSION=${RAW_VERSION}" >> $GITHUB_OUTPUT
           echo "TAG=v${RAW_VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Cross-compile standalone binaries
+      - name: Compile Windows standalone binary
         run: |
-          mkdir -p dist/windows-x64 dist/linux-x64 dist/linux-arm64 dist/macos-x64 dist/macos-arm64
           bun build --compile --minify --external ffmpeg-static ./src/index.ts --target=bun-windows-x64 --outfile ./dist/windows-x64/bot-server.exe
-          bun build --compile --minify --external ffmpeg-static ./src/index.ts --target=bun-linux-x64   --outfile ./dist/linux-x64/bot-server
-          bun build --compile --minify --external ffmpeg-static ./src/index.ts --target=bun-linux-arm64 --outfile ./dist/linux-arm64/bot-server
-          bun build --compile --minify --external ffmpeg-static ./src/index.ts --target=bun-darwin-x64  --outfile ./dist/macos-x64/bot-server
-          bun build --compile --minify --external ffmpeg-static ./src/index.ts --target=bun-darwin-arm64 --outfile ./dist/macos-arm64/bot-server
 
-      - name: Package release archives (without ffmpeg/yt-dlp/token)
+      - name: Package Windows release archive (with davey native binding & run.bat)
         run: |
           cp windows/run.bat ./dist/windows-x64/
           cd dist
-          tar -czf discord-music-bot-windows-x64.tar.gz -C windows-x64 .
-          tar -czf discord-music-bot-linux-x64.tar.gz -C linux-x64 .
-          tar -czf discord-music-bot-linux-arm64.tar.gz -C linux-arm64 .
-          tar -czf discord-music-bot-macos-x64.tar.gz -C macos-x64 .
-          tar -czf discord-music-bot-macos-arm64.tar.gz -C macos-arm64 .
           (cd windows-x64 && zip -r ../discord-music-bot-windows-x64.zip .)
-          (cd linux-x64 && zip -r ../discord-music-bot-linux-x64.zip .)
-          (cd linux-arm64 && zip -r ../discord-music-bot-linux-arm64.zip .)
-          (cd macos-x64 && zip -r ../discord-music-bot-macos-x64.zip .)
-          (cd macos-arm64 && zip -r ../discord-music-bot-macos-arm64.zip .)
+          tar -czf discord-music-bot-windows-x64.tar.gz -C windows-x64 .
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -66,8 +62,8 @@ jobs:
           tag_name: ${{ steps.version.outputs.TAG }}
           name: Release ${{ steps.version.outputs.TAG }}
           files: |
-            dist/*.tar.gz
-            dist/*.zip
+            dist/discord-music-bot-windows-x64.zip
+            dist/discord-music-bot-windows-x64.tar.gz
           generate_release_notes: true
           draft: false
           prerelease: false

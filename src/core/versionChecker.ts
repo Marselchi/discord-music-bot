@@ -128,7 +128,7 @@ function compareVersions(
   return false;
 }
 
-export const BOT_VERSION = "0.2.1";
+export const BOT_VERSION = "0.2.2";
 export const GITHUB_REPO = "Marselchi/discord-music-bot";
 
 export async function getLatestBotVersion(): Promise<{
@@ -301,6 +301,7 @@ export async function checkBotUpdateOnStartup(): Promise<boolean> {
                 `Expand-Archive -Path '${tempFile}' -DestinationPath '${APP_DIR}/update-temp' -Force; ` +
                   `if (Test-Path '${APP_DIR}/update-temp/windows-x64/bot-server.exe') { Copy-Item -Force '${APP_DIR}/update-temp/windows-x64/bot-server.exe' '${APP_DIR}/bot-server-update.exe' } ` +
                   `elseif (Test-Path '${APP_DIR}/update-temp/bot-server.exe') { Copy-Item -Force '${APP_DIR}/update-temp/bot-server.exe' '${APP_DIR}/bot-server-update.exe' }; ` +
+                  `Get-ChildItem -Path '${APP_DIR}/update-temp' -Recurse -Filter 'davey*.node' | Copy-Item -Destination '${APP_DIR}/davey.win32-x64-msvc.node' -Force; ` +
                   `Remove-Item -Recurse -Force '${APP_DIR}/update-temp'; Remove-Item -Force '${tempFile}'`,
               ]).exited;
             } else {
